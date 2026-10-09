@@ -14,6 +14,7 @@ public class TestRunner {
         System.out.println("====================================================");
 
         runF1SelfTests();
+        EnumAndExceptionTests.run();
 
         System.out.println("====================================================");
         System.out.printf("Test Summary: Total=%d, Passed=%d, Failed=%d%n", testsRun, testsPassed, testsFailed);
@@ -58,7 +59,12 @@ public class TestRunner {
         }
     }
 
-    public static void assertThrows(String testName, Class<? extends Throwable> expectedType, Runnable action) {
+    @FunctionalInterface
+    public interface ThrowingRunnable {
+        void run() throws Throwable;
+    }
+
+    public static void assertThrows(String testName, Class<? extends Throwable> expectedType, ThrowingRunnable action) {
         testsRun++;
         try {
             action.run();
