@@ -225,6 +225,44 @@ public class ItemService {
         return Collections.unmodifiableList(results);
     }
 
+    public static final java.util.Comparator<Item> SORT_BY_DATE_DESC = (a, b) -> {
+        int cmp = b.getDate().compareTo(a.getDate());
+        return cmp != 0 ? cmp : a.getId().compareTo(b.getId());
+    };
+
+    public static final java.util.Comparator<Item> SORT_BY_DATE_ASC = (a, b) -> {
+        int cmp = a.getDate().compareTo(b.getDate());
+        return cmp != 0 ? cmp : a.getId().compareTo(b.getId());
+    };
+
+    public static final java.util.Comparator<Item> SORT_BY_NAME_ASC = (a, b) -> {
+        int cmp = a.getName().compareToIgnoreCase(b.getName());
+        return cmp != 0 ? cmp : a.getId().compareTo(b.getId());
+    };
+
+    /**
+     * Browses items with optional type and status filters and custom Comparator sorting.
+     */
+    public List<Item> browse(String typeFilter, ItemStatus statusFilter, java.util.Comparator<Item> comparator) {
+        List<Item> filtered = new ArrayList<>();
+        String tf = (typeFilter != null) ? typeFilter.trim().toUpperCase() : "ALL";
+
+        for (Item item : itemList) {
+            if (!"ALL".equals(tf) && !item.getItemType().equalsIgnoreCase(tf)) {
+                continue;
+            }
+            if (statusFilter != null && item.getStatus() != statusFilter) {
+                continue;
+            }
+            filtered.add(item);
+        }
+
+        if (comparator != null) {
+            filtered.sort(comparator);
+        }
+        return Collections.unmodifiableList(filtered);
+    }
+
     /**
      * Clears all items and resets sequence.
      */

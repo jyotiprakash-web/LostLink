@@ -96,6 +96,8 @@ public class Main {
                 handleSearchRecords();
                 break;
             case 5:
+                handleBrowseItems();
+                break;
             case 6:
             case 7:
             case 8:
@@ -221,6 +223,52 @@ public class Main {
             out.println("\n[Search Results] Total found: " + results.size());
             if (results.isEmpty()) {
                 out.println("No records matched your search criteria.");
+            } else {
+                for (int i = 0; i < results.size(); i++) {
+                    out.println((i + 1) + ". " + results.get(i).getPublicSummary());
+                }
+            }
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
+        }
+    }
+
+    public void handleBrowseItems() {
+        out.println("\n--- Browse Lost and Found Items ---");
+        try {
+            String typeChoice = inputHelper.readChoice("Filter by item type", new String[]{"All items", "Lost items only", "Found items only"});
+            String typeFilter = "ALL";
+            if ("Lost items only".equals(typeChoice)) {
+                typeFilter = "LOST";
+            } else if ("Found items only".equals(typeChoice)) {
+                typeFilter = "FOUND";
+            }
+
+            String statusChoice = inputHelper.readChoice("Filter by status", new String[]{"All statuses", "OPEN only", "CLAIM_PENDING only", "RETURNED only", "CLOSED only"});
+            model.ItemStatus statusFilter = null;
+            if ("OPEN only".equals(statusChoice)) {
+                statusFilter = model.ItemStatus.OPEN;
+            } else if ("CLAIM_PENDING only".equals(statusChoice)) {
+                statusFilter = model.ItemStatus.CLAIM_PENDING;
+            } else if ("RETURNED only".equals(statusChoice)) {
+                statusFilter = model.ItemStatus.RETURNED;
+            } else if ("CLOSED only".equals(statusChoice)) {
+                statusFilter = model.ItemStatus.CLOSED;
+            }
+
+            String sortChoice = inputHelper.readChoice("Sort items by", new String[]{"Date (newest first)", "Date (oldest first)", "Name (A-Z)"});
+            java.util.Comparator<model.Item> comparator = service.ItemService.SORT_BY_DATE_DESC;
+            if ("Date (oldest first)".equals(sortChoice)) {
+                comparator = service.ItemService.SORT_BY_DATE_ASC;
+            } else if ("Name (A-Z)".equals(sortChoice)) {
+                comparator = service.ItemService.SORT_BY_NAME_ASC;
+            }
+
+            java.util.List<model.Item> results = itemService.browse(typeFilter, statusFilter, comparator);
+            out.println("\n[Browse Results] Total records: " + results.size());
+            if (results.isEmpty()) {
+                out.println("No records found matching the browse criteria.");
             } else {
                 for (int i = 0; i < results.size(); i++) {
                     out.println((i + 1) + ". " + results.get(i).getPublicSummary());
