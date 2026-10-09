@@ -1,0 +1,6 @@
+out/
+*.class
+data/
+*.rejected
+.temp*
+test_data*
