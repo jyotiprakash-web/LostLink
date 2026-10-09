@@ -84,6 +84,8 @@ public class Main {
     public void handleMenuChoice(int choice) {
         switch (choice) {
             case 1:
+                handleReportLostItem();
+                break;
             case 2:
             case 3:
             case 4:
@@ -99,6 +101,45 @@ public class Main {
             default:
                 out.println("Unknown option: " + choice);
                 break;
+        }
+    }
+
+    public void handleReportLostItem() {
+        out.println("\n--- Report a Lost Item ---");
+        try {
+            String name = inputHelper.readNonBlank("Item name");
+            String categoryStr = inputHelper.readChoice("Select Category", model.ItemCategory.getNames());
+            model.ItemCategory category = model.ItemCategory.fromString(categoryStr);
+            String color = inputHelper.readNonBlank("Color");
+            String location = inputHelper.readNonBlank("Last-seen location");
+            String lastSeenDetails = inputHelper.readOptional("Additional last-seen details");
+            java.time.LocalDate date = inputHelper.readDate("Date lost");
+            String description = inputHelper.readNonBlank("Description");
+
+            String roleChoice = inputHelper.readChoice("Reporter role", new String[]{"Student", "Staff"});
+            String reporterName = inputHelper.readNonBlank("Reporter name");
+            String contact = inputHelper.readNonBlank("Contact email or phone");
+
+            model.User reporter;
+            if ("Student".equalsIgnoreCase(roleChoice)) {
+                String studentId = inputHelper.readOptional("Student ID");
+                reporter = new model.Student(reporterName, contact, studentId);
+            } else {
+                String staffId = inputHelper.readOptional("Staff ID");
+                reporter = new model.Staff(reporterName, contact, staffId);
+            }
+
+            model.LostItem item = itemService.reportLostItem(name, category, color, location, date,
+                    description, reporter, contact, lastSeenDetails);
+
+            out.println("\n[Success] Lost item report created successfully!");
+            out.println("Generated Item ID: " + item.getId());
+            out.println("Item Summary: " + item.getPublicSummary());
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
+        } catch (exception.InvalidItemException e) {
+            out.println("[Error] Failed to create lost item report: " + e.getMessage());
         }
     }
 
