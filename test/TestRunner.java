@@ -16,6 +16,7 @@ public class TestRunner {
         runF1SelfTests();
         EnumAndExceptionTests.run();
         UserTests.run();
+        ItemTests.run();
 
         System.out.println("====================================================");
         System.out.printf("Test Summary: Total=%d, Passed=%d, Failed=%d%n", testsRun, testsPassed, testsFailed);
