@@ -19,6 +19,7 @@ public class TestRunner {
         ItemTests.run();
         ClaimAndMatchTests.run();
         InputHelperTests.run();
+        ItemServiceTests.run();
 
         System.out.println("====================================================");
         System.out.printf("Test Summary: Total=%d, Passed=%d, Failed=%d%n", testsRun, testsPassed, testsFailed);
