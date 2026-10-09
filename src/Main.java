@@ -87,6 +87,8 @@ public class Main {
                 handleReportLostItem();
                 break;
             case 2:
+                handleReportFoundItem();
+                break;
             case 3:
             case 4:
             case 5:
@@ -140,6 +142,46 @@ public class Main {
             handleExit();
         } catch (exception.InvalidItemException e) {
             out.println("[Error] Failed to create lost item report: " + e.getMessage());
+        }
+    }
+
+    public void handleReportFoundItem() {
+        out.println("\n--- Report a Found Item ---");
+        try {
+            String name = inputHelper.readNonBlank("Item name");
+            String categoryStr = inputHelper.readChoice("Select Category", model.ItemCategory.getNames());
+            model.ItemCategory category = model.ItemCategory.fromString(categoryStr);
+            String color = inputHelper.readNonBlank("Color");
+            String location = inputHelper.readNonBlank("Found location");
+            java.time.LocalDate date = inputHelper.readDate("Date found");
+            String description = inputHelper.readNonBlank("Description");
+
+            String roleChoice = inputHelper.readChoice("Reporter role", new String[]{"Student", "Staff"});
+            String reporterName = inputHelper.readNonBlank("Reporter name");
+            String contact = inputHelper.readNonBlank("Contact email or phone");
+
+            model.User reporter;
+            if ("Student".equalsIgnoreCase(roleChoice)) {
+                String studentId = inputHelper.readOptional("Student ID");
+                reporter = new model.Student(reporterName, contact, studentId);
+            } else {
+                String staffId = inputHelper.readOptional("Staff ID");
+                reporter = new model.Staff(reporterName, contact, staffId);
+            }
+
+            String privateDetails = inputHelper.readOptional("Private identifying details (confidential verification info)");
+
+            model.FoundItem item = itemService.reportFoundItem(name, category, color, location, date,
+                    description, reporter, contact, privateDetails);
+
+            out.println("\n[Success] Found item report registered successfully!");
+            out.println("Generated Item ID: " + item.getId());
+            out.println("Item Public Summary: " + item.getPublicSummary());
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
+        } catch (exception.InvalidItemException e) {
+            out.println("[Error] Failed to create found item report: " + e.getMessage());
         }
     }
 
