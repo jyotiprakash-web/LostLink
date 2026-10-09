@@ -90,7 +90,11 @@ public class Main {
                 handleReportFoundItem();
                 break;
             case 3:
+                out.println("[Coming Soon] " + MENU_LABELS[choice - 1] + " is not yet implemented.");
+                break;
             case 4:
+                handleSearchRecords();
+                break;
             case 5:
             case 6:
             case 7:
@@ -182,6 +186,49 @@ public class Main {
             handleExit();
         } catch (exception.InvalidItemException e) {
             out.println("[Error] Failed to create found item report: " + e.getMessage());
+        }
+    }
+
+    public void handleSearchRecords() {
+        out.println("\n--- Search Records ---");
+        try {
+            String keyword = inputHelper.readOptional("Search keyword (matches name, description, color, location)");
+
+            String catInput = inputHelper.readOptional("Category filter (leave blank for ALL, or enter category name)");
+            model.ItemCategory catFilter = null;
+            if (!catInput.isEmpty()) {
+                try {
+                    catFilter = model.ItemCategory.fromString(catInput);
+                } catch (IllegalArgumentException e) {
+                    out.println("Unknown category '" + catInput + "'. Ignoring category filter.");
+                }
+            }
+
+            String colorFilter = inputHelper.readOptional("Color filter (leave blank for ALL)");
+            String locationFilter = inputHelper.readOptional("Location filter (leave blank for ALL)");
+
+            String statusInput = inputHelper.readOptional("Status filter (OPEN, CLAIM_PENDING, RETURNED, CLOSED, or leave blank for ALL)");
+            model.ItemStatus statusFilter = null;
+            if (!statusInput.isEmpty()) {
+                try {
+                    statusFilter = model.ItemStatus.fromString(statusInput);
+                } catch (IllegalArgumentException e) {
+                    out.println("Unknown status '" + statusInput + "'. Ignoring status filter.");
+                }
+            }
+
+            java.util.List<model.Item> results = itemService.search(keyword, catFilter, colorFilter, locationFilter, statusFilter);
+            out.println("\n[Search Results] Total found: " + results.size());
+            if (results.isEmpty()) {
+                out.println("No records matched your search criteria.");
+            } else {
+                for (int i = 0; i < results.size(); i++) {
+                    out.println((i + 1) + ". " + results.get(i).getPublicSummary());
+                }
+            }
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
         }
     }
 

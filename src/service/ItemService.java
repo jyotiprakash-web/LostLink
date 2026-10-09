@@ -176,6 +176,56 @@ public class ItemService {
     }
 
     /**
+     * Searches items with partial case-insensitive keyword and optional filters.
+     */
+    public List<Item> search(String keyword,
+                             ItemCategory categoryFilter,
+                             String colorFilter,
+                             String locationFilter,
+                             ItemStatus statusFilter) {
+        List<Item> results = new ArrayList<>();
+        String kw = (keyword != null) ? keyword.trim().toLowerCase() : "";
+        String col = (colorFilter != null) ? colorFilter.trim().toLowerCase() : "";
+        String loc = (locationFilter != null) ? locationFilter.trim().toLowerCase() : "";
+
+        for (Item item : itemList) {
+            if (!kw.isEmpty()) {
+                boolean matchName = item.getName().toLowerCase().contains(kw);
+                boolean matchDesc = item.getDescription().toLowerCase().contains(kw);
+                boolean matchCat = item.getCategory().name().toLowerCase().contains(kw);
+                boolean matchColor = item.getColor().toLowerCase().contains(kw);
+                boolean matchLoc = item.getLocation().toLowerCase().contains(kw);
+                boolean matchExtra = false;
+                if (item instanceof LostItem) {
+                    matchExtra = ((LostItem) item).getLastSeenLocationDetails().toLowerCase().contains(kw);
+                }
+                if (!matchName && !matchDesc && !matchCat && !matchColor && !matchLoc && !matchExtra) {
+                    continue;
+                }
+            }
+
+            if (categoryFilter != null && item.getCategory() != categoryFilter) {
+                continue;
+            }
+
+            if (!col.isEmpty() && !item.getColor().toLowerCase().equals(col)) {
+                continue;
+            }
+
+            if (!loc.isEmpty() && !item.getLocation().toLowerCase().contains(loc)) {
+                continue;
+            }
+
+            if (statusFilter != null && item.getStatus() != statusFilter) {
+                continue;
+            }
+
+            results.add(item);
+        }
+        return Collections.unmodifiableList(results);
+    }
+
+    /**
      * Clears all items and resets sequence.
      */
     public synchronized void clear() {
