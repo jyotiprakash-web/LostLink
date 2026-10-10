@@ -1,5 +1,6 @@
 import java.io.PrintStream;
 import service.ClaimService;
+import service.FileStorage;
 import service.ItemService;
 import service.MatchingService;
 import util.InputHelper;
@@ -25,18 +26,26 @@ public class Main {
     private final ItemService itemService;
     private final MatchingService matchingService;
     private final ClaimService claimService;
+    private final FileStorage fileStorage;
     private final InputHelper inputHelper;
     private final PrintStream out;
     private final String dataDir;
     private boolean running = true;
 
-    public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, InputHelper inputHelper, PrintStream out, String dataDir) {
+    public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, FileStorage fileStorage, InputHelper inputHelper, PrintStream out, String dataDir) {
         this.itemService = (itemService != null) ? itemService : new ItemService();
         this.matchingService = (matchingService != null) ? matchingService : new MatchingService();
         this.claimService = (claimService != null) ? claimService : new ClaimService(this.itemService);
         this.inputHelper = (inputHelper != null) ? inputHelper : new InputHelper();
         this.out = (out != null) ? out : System.out;
         this.dataDir = (dataDir != null) ? dataDir : DEFAULT_DATA_DIR;
+        this.fileStorage = fileStorage;
+    }
+
+    public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, InputHelper inputHelper, PrintStream out, String dataDir) {
+        this(itemService, matchingService, claimService,
+                Boolean.getBoolean("lostlink.no_storage") ? null : new FileStorage((dataDir != null) ? dataDir : DEFAULT_DATA_DIR),
+                inputHelper, out, dataDir);
     }
 
     public Main(ItemService itemService, MatchingService matchingService, InputHelper inputHelper, PrintStream out, String dataDir) {
@@ -51,7 +60,9 @@ public class Main {
         String dataDir = resolveDataDir(args);
         InputHelper inputHelper = new InputHelper();
         ItemService itemService = new ItemService();
-        Main app = new Main(itemService, inputHelper, System.out, dataDir);
+        ClaimService claimService = new ClaimService(itemService);
+        FileStorage fileStorage = new FileStorage(dataDir);
+        Main app = new Main(itemService, new MatchingService(), claimService, fileStorage, inputHelper, System.out, dataDir);
         app.run();
     }
 
@@ -71,6 +82,7 @@ public class Main {
     }
 
     public void run() {
+        loadData();
         while (running) {
             displayMenu();
             int choice = inputHelper.readMenuChoice(1, MENU_LABELS.length);
@@ -81,6 +93,39 @@ public class Main {
                 break;
             }
             handleMenuChoice(choice);
+        }
+    }
+
+    public void loadData() {
+        if (fileStorage == null) return;
+        try {
+            int loadedItems = fileStorage.loadItems(itemService);
+            int loadedClaims = fileStorage.loadClaims(claimService, itemService);
+            if (loadedItems > 0 || loadedClaims > 0) {
+                out.printf("Loaded %d item(s) and %d claim(s) from %s.%n", loadedItems, loadedClaims, dataDir);
+            }
+        } catch (java.io.IOException e) {
+            out.println("[Warning] Failed to load data from " + dataDir + ": " + e.getMessage());
+        }
+    }
+
+    private void persistItemAppendSafe(model.Item item) {
+        if (fileStorage != null && item != null) {
+            try {
+                fileStorage.appendItem(item);
+            } catch (java.io.IOException e) {
+                out.println("[Warning] Failed to save item to file: " + e.getMessage());
+            }
+        }
+    }
+
+    private void persistAllSafe(String context) {
+        if (fileStorage != null) {
+            try {
+                fileStorage.saveAll(itemService, claimService);
+            } catch (java.io.IOException e) {
+                out.println("[Warning] Failed to save " + context + ": " + e.getMessage());
+            }
         }
     }
 
@@ -161,6 +206,7 @@ public class Main {
             out.println("\n[Success] Lost item report created successfully!");
             out.println("Generated Item ID: " + item.getId());
             out.println("Item Summary: " + item.getPublicSummary());
+            persistItemAppendSafe(item);
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -272,6 +318,7 @@ public class Main {
             out.println("\n[Success] Found item report registered successfully!");
             out.println("Generated Item ID: " + item.getId());
             out.println("Item Public Summary: " + item.getPublicSummary());
+            persistItemAppendSafe(item);
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -436,6 +483,7 @@ public class Main {
             out.println("\n[Success] Claim submitted successfully!");
             out.println("Generated Claim ID: " + claim.getId());
             out.println("Claim Summary: " + claim.getSummary());
+            persistAllSafe("claim submission");
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -470,6 +518,7 @@ public class Main {
             String notes = inputHelper.readNonBlank("Questions / information needed");
             claimService.requestMoreInformation(claimId, staff.getName(), notes);
             out.println("[Success] Claim " + claimId + " updated with notes. Status remains PENDING.");
+            persistAllSafe("claim notes update");
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -490,6 +539,7 @@ public class Main {
             String notes = inputHelper.readNonBlank("Approval justification notes");
             claimService.approveClaim(claimId, staff.getName(), notes);
             out.println("[Success] Claim " + claimId + " APPROVED! Item is awaiting handover completion.");
+            persistAllSafe("claim approval");
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -510,6 +560,7 @@ public class Main {
             String notes = inputHelper.readNonBlank("Rejection reason notes");
             claimService.rejectClaim(claimId, staff.getName(), notes);
             out.println("[Success] Claim " + claimId + " REJECTED.");
+            persistAllSafe("claim rejection");
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -530,6 +581,7 @@ public class Main {
             String notes = inputHelper.readNonBlank("Handover confirmation notes");
             claimService.completeHandover(claimId, staff.getName(), notes);
             out.println("[Success] Handover complete! Claim is COMPLETED and Item is marked RETURNED.");
+            persistAllSafe("handover completion");
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -598,6 +650,7 @@ public class Main {
                     itemService.updateOpenItemDetails(targetId, newColor, newLoc, newDesc, newContact, newExtra);
                     out.println("[Success] Item " + targetId + " details updated successfully!");
                     out.println("Updated summary: " + item.getPublicSummary());
+                    persistAllSafe("item update");
                 } catch (exception.ItemNotFoundException e) {
                     out.println("[Error] Item not found with ID: " + targetId);
                 } catch (exception.InvalidItemException e) {
@@ -627,6 +680,7 @@ public class Main {
     }
 
     public void handleExit() {
+        persistAllSafe("all data on exit");
         out.println("Saving data and exiting LostLink. Goodbye!");
         running = false;
     }
@@ -637,6 +691,10 @@ public class Main {
 
     public ItemService getItemService() {
         return itemService;
+    }
+
+    public FileStorage getFileStorage() {
+        return fileStorage;
     }
 
     public String getDataDir() {

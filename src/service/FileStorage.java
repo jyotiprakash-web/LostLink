@@ -248,6 +248,44 @@ public class FileStorage {
         saveClaims(claimService);
     }
 
+    /**
+     * Appends a newly created item to items.csv without rewriting the entire file.
+     * If the file is missing or empty, writes the header first.
+     */
+    public synchronized void appendItem(Item item) throws IOException {
+        if (item == null) return;
+        ensureDataDir();
+        boolean writeHeader = !Files.exists(itemsCsvPath) || Files.size(itemsCsvPath) == 0;
+        try (BufferedWriter writer = Files.newBufferedWriter(itemsCsvPath, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+            if (writeHeader) {
+                writer.write(ITEMS_HEADER);
+                writer.newLine();
+            }
+            writer.write(serializeItem(item));
+            writer.newLine();
+        }
+    }
+
+    /**
+     * Appends a newly created claim to claims.csv without rewriting the entire file.
+     * If the file is missing or empty, writes the header first.
+     */
+    public synchronized void appendClaim(Claim claim) throws IOException {
+        if (claim == null) return;
+        ensureDataDir();
+        boolean writeHeader = !Files.exists(claimsCsvPath) || Files.size(claimsCsvPath) == 0;
+        try (BufferedWriter writer = Files.newBufferedWriter(claimsCsvPath, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+            if (writeHeader) {
+                writer.write(CLAIMS_HEADER);
+                writer.newLine();
+            }
+            writer.write(serializeClaim(claim));
+            writer.newLine();
+        }
+    }
+
     // --- Parsing & Serialization Helpers ---
 
     private Item parseItemRecord(List<String> record)

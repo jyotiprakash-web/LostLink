@@ -9,6 +9,7 @@ public class TestRunner {
     private static int testsFailed = 0;
 
     public static void main(String[] args) {
+        System.setProperty("lostlink.no_storage", "true");
         System.out.println("====================================================");
         System.out.println("           LostLink Test Suite Runner");
         System.out.println("====================================================");
@@ -35,6 +36,7 @@ public class TestRunner {
         StatisticsTests.run();
         CsvCodecTests.run();
         FileStorageLoadTests.run();
+        FileStorageSaveTests.run();
 
         System.out.println("====================================================");
         System.out.printf("Test Summary: Total=%d, Passed=%d, Failed=%d%n", testsRun, testsPassed, testsFailed);
