@@ -264,6 +264,43 @@ public class ItemService {
     }
 
     /**
+     * Finds reports matching a reporter name (case-insensitive).
+     */
+    public List<Item> getReportsByReporterName(String reporterName) {
+        if (reporterName == null || reporterName.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        String target = reporterName.trim().toLowerCase();
+        List<Item> matching = new ArrayList<>();
+        for (Item item : itemList) {
+            if (item.getReporter().getName().toLowerCase().contains(target)) {
+                matching.add(item);
+            }
+        }
+        return Collections.unmodifiableList(matching);
+    }
+
+    /**
+     * Updates an open item's details. Throws InvalidItemException if status is not OPEN.
+     */
+    public synchronized void updateOpenItemDetails(String id, String newColor, String newLocation,
+                                                   String newDescription, String newContact,
+                                                   String newExtraDetails)
+            throws ItemNotFoundException, InvalidItemException {
+
+        Item item = getById(id);
+        if (item.getStatus() != ItemStatus.OPEN) {
+            throw new InvalidItemException("Cannot update item " + id + ". Only OPEN items can be edited (current status: " + item.getStatus() + ").");
+        }
+        item.updateDetails(newColor, newLocation, newDescription, newContact);
+        if (item instanceof LostItem && newExtraDetails != null && !newExtraDetails.trim().isEmpty()) {
+            ((LostItem) item).setLastSeenLocationDetails(newExtraDetails);
+        } else if (item instanceof FoundItem && newExtraDetails != null && !newExtraDetails.trim().isEmpty()) {
+            ((FoundItem) item).setPrivateDetails(newExtraDetails);
+        }
+    }
+
+    /**
      * Clears all items and resets sequence.
      */
     public synchronized void clear() {

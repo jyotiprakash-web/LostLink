@@ -116,6 +116,8 @@ public class Main {
                 handleManageClaims();
                 break;
             case 7:
+                handleMyReports();
+                break;
             case 8:
                 out.println("[Coming Soon] " + MENU_LABELS[choice - 1] + " is not yet implemented.");
                 break;
@@ -533,6 +535,78 @@ public class Main {
             handleExit();
         } catch (exception.InvalidClaimException | exception.ItemNotFoundException e) {
             out.println("[Error] " + e.getMessage());
+        }
+    }
+
+    public void handleMyReports() {
+        out.println("\n--- My Reports ---");
+        try {
+            out.println("1. Lookup reports by reporter name");
+            out.println("2. Lookup report by item ID");
+            out.println("3. Return to main menu");
+            int choice = inputHelper.readMenuChoice(1, 3);
+            if (choice == -1 || choice == 3) {
+                return;
+            }
+
+            java.util.List<model.Item> reports = new java.util.ArrayList<>();
+            if (choice == 1) {
+                String name = inputHelper.readNonBlank("Enter your reporter name (case-insensitive)");
+                reports = itemService.getReportsByReporterName(name);
+                out.println("\n[My Reports for '" + name + "'] Found: " + reports.size());
+                if (reports.isEmpty()) {
+                    out.println("No reports found under that reporter name.");
+                    return;
+                }
+                for (int i = 0; i < reports.size(); i++) {
+                    out.println((i + 1) + ". " + reports.get(i).getPublicSummary());
+                }
+            } else if (choice == 2) {
+                String id = inputHelper.readNonBlank("Enter Item ID (e.g. ITM-0001)");
+                try {
+                    model.Item item = itemService.getById(id);
+                    reports.add(item);
+                    out.println("\n[Report Found]");
+                    out.println(item.getPublicSummary());
+                } catch (exception.ItemNotFoundException e) {
+                    out.println("[Error] Item not found with ID: " + id);
+                    return;
+                }
+            }
+
+            String updateChoice = inputHelper.readOptional("Would you like to update details for an OPEN item? (y/n)");
+            if ("y".equalsIgnoreCase(updateChoice)) {
+                String targetId = inputHelper.readNonBlank("Enter Item ID to update");
+                try {
+                    model.Item item = itemService.getById(targetId);
+                    if (item.getStatus() != model.ItemStatus.OPEN) {
+                        out.println("[Notice] Only items with status OPEN can be edited. Current status is " + item.getStatus() + ".");
+                        return;
+                    }
+                    out.println("Editing item " + targetId + " (press Enter to keep current value):");
+                    String newColor = inputHelper.readOptional("New color (current: " + item.getColor() + ")");
+                    String newLoc = inputHelper.readOptional("New location (current: " + item.getLocation() + ")");
+                    String newDesc = inputHelper.readOptional("New description (current: " + item.getDescription() + ")");
+                    String newContact = inputHelper.readOptional("New contact (current: " + item.getContact() + ")");
+                    String newExtra = "";
+                    if (item instanceof model.LostItem) {
+                        newExtra = inputHelper.readOptional("New last seen details (current: " + ((model.LostItem) item).getLastSeenLocationDetails() + ")");
+                    } else if (item instanceof model.FoundItem) {
+                        newExtra = inputHelper.readOptional("New private details");
+                    }
+
+                    itemService.updateOpenItemDetails(targetId, newColor, newLoc, newDesc, newContact, newExtra);
+                    out.println("[Success] Item " + targetId + " details updated successfully!");
+                    out.println("Updated summary: " + item.getPublicSummary());
+                } catch (exception.ItemNotFoundException e) {
+                    out.println("[Error] Item not found with ID: " + targetId);
+                } catch (exception.InvalidItemException e) {
+                    out.println("[Error] Failed to update item: " + e.getMessage());
+                }
+            }
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
         }
     }
 

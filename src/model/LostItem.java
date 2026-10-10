@@ -7,7 +7,7 @@ import java.time.LocalDate;
  * Represents a lost item reported by a student or staff member.
  */
 public class LostItem extends Item {
-    private final String lastSeenLocationDetails;
+    private String lastSeenLocationDetails;
 
     public LostItem(String id,
                     String name,
@@ -39,6 +39,10 @@ public class LostItem extends Item {
 
     public String getLastSeenLocationDetails() {
         return lastSeenLocationDetails;
+    }
+
+    public void setLastSeenLocationDetails(String lastSeenLocationDetails) {
+        this.lastSeenLocationDetails = (lastSeenLocationDetails != null) ? lastSeenLocationDetails.trim() : "";
     }
 
     @Override

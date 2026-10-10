@@ -8,7 +8,7 @@ import java.time.LocalDate;
  * May include sensitive identifying details kept hidden from public listings.
  */
 public class FoundItem extends Item {
-    private final String privateDetails;
+    private String privateDetails;
 
     public FoundItem(String id,
                      String name,
@@ -43,6 +43,10 @@ public class FoundItem extends Item {
      */
     public String getPrivateDetails() {
         return privateDetails;
+    }
+
+    public void setPrivateDetails(String privateDetails) {
+        this.privateDetails = (privateDetails != null) ? privateDetails.trim() : "";
     }
 
     @Override

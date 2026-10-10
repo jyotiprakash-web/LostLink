@@ -11,13 +11,13 @@ public abstract class Item {
     private final String id;
     private final String name;
     private final ItemCategory category;
-    private final String color;
-    private final String location;
+    private String color;
+    private String location;
     private final LocalDate date;
-    private final String description;
+    private String description;
     private ItemStatus status;
     private final User reporter;
-    private final String contact;
+    private String contact;
 
     public Item(String id,
                 String name,
@@ -107,6 +107,29 @@ public abstract class Item {
             throw new IllegalArgumentException("Item status cannot be set to null.");
         }
         this.status = status;
+    }
+
+    /**
+     * Updates editable fields on an item only if it remains OPEN.
+     */
+    public void updateDetails(String newColor, String newLocation, String newDescription, String newContact)
+            throws InvalidItemException {
+
+        if (status != ItemStatus.OPEN) {
+            throw new InvalidItemException("Cannot update item " + id + ". Only OPEN items can be edited (current status: " + status + ").");
+        }
+        if (newColor != null && !newColor.trim().isEmpty()) {
+            this.color = newColor.trim();
+        }
+        if (newLocation != null && !newLocation.trim().isEmpty()) {
+            this.location = newLocation.trim();
+        }
+        if (newDescription != null && !newDescription.trim().isEmpty()) {
+            this.description = newDescription.trim();
+        }
+        if (newContact != null && !newContact.trim().isEmpty()) {
+            this.contact = newContact.trim();
+        }
     }
 
     public User getReporter() {
