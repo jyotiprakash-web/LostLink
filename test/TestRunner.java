@@ -40,6 +40,7 @@ public class TestRunner {
         RestartPersistenceTests.run();
         ActivityLogTests.run();
         IntegrationTests.run();
+        ConceptAuditTests.run();
 
         System.out.println("====================================================");
         System.out.printf("Test Summary: Total=%d, Passed=%d, Failed=%d%n", testsRun, testsPassed, testsFailed);
