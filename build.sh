@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
+if [ "$1" = "clean" ]; then
+    echo "Cleaning out directory..."
+    rm -rf out
+    echo "Clean complete."
+    exit 0
+fi
+
 mkdir -p out
 
 echo "Compiling Java sources..."

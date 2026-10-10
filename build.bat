@@ -1,6 +1,14 @@
 @echo off
 setlocal enabledelayedexpansion
 
+if "%1"=="clean" (
+    echo Cleaning out directory...
+    if exist out rd /s /q out
+    if exist sources.txt del sources.txt
+    echo Clean complete.
+    exit /b 0
+)
+
 if not exist out mkdir out
 
 echo Compiling Java sources...
