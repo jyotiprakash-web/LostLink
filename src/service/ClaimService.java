@@ -212,6 +212,54 @@ public class ClaimService {
         }
     }
 
+    /**
+     * Completes handover of an APPROVED claim.
+     * Marks the found item and linked lost item (if any) as RETURNED.
+     * Auto-rejects any other PENDING claims on that item with a note.
+     */
+    public synchronized void completeHandover(String claimId, String reviewerName, String notes)
+            throws InvalidClaimException, ItemNotFoundException {
+
+        Claim claim = getClaimById(claimId);
+        if (claim.getStatus() != ClaimStatus.APPROVED) {
+            throw new InvalidClaimException("Cannot complete handover for claim " + claimId
+                    + ". Status must be APPROVED but was: " + claim.getStatus());
+        }
+
+        claim.setStatus(ClaimStatus.COMPLETED);
+        if (reviewerName != null && !reviewerName.trim().isEmpty()) {
+            claim.setReviewerName(reviewerName.trim());
+        }
+        if (notes != null && !notes.trim().isEmpty()) {
+            String existing = claim.getReviewNotes();
+            claim.setReviewNotes(existing.isEmpty() ? notes.trim() : (existing + " | Handover: " + notes.trim()));
+        }
+
+        // Set found item to RETURNED
+        Item foundItem = itemService.getById(claim.getFoundItemId());
+        foundItem.setStatus(ItemStatus.RETURNED);
+
+        // If linked lost item exists, set to RETURNED
+        if (!claim.getLinkedLostItemId().isEmpty()) {
+            try {
+                Item lostItem = itemService.getById(claim.getLinkedLostItemId());
+                lostItem.setStatus(ItemStatus.RETURNED);
+            } catch (ItemNotFoundException ignored) {
+            }
+        }
+
+        // Auto-reject competing pending claims
+        for (Claim other : claimList) {
+            if (!other.getId().equals(claim.getId()) &&
+                    other.getFoundItemId().equalsIgnoreCase(claim.getFoundItemId()) &&
+                    other.getStatus() == ClaimStatus.PENDING) {
+                other.setStatus(ClaimStatus.REJECTED);
+                other.setReviewerName(reviewerName != null ? reviewerName : "System");
+                other.setReviewNotes("Auto-rejected: Item returned to another claimant (Claim " + claim.getId() + " completed)");
+            }
+        }
+    }
+
     public List<Claim> getAllClaims() {
         return Collections.unmodifiableList(new ArrayList<>(claimList));
     }
