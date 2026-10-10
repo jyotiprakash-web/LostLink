@@ -34,6 +34,7 @@ public class TestRunner {
         MyReportsTests.run();
         StatisticsTests.run();
         CsvCodecTests.run();
+        FileStorageLoadTests.run();
 
         System.out.println("====================================================");
         System.out.printf("Test Summary: Total=%d, Passed=%d, Failed=%d%n", testsRun, testsPassed, testsFailed);
