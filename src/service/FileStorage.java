@@ -16,6 +16,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import model.Claim;
@@ -47,6 +48,7 @@ public class FileStorage {
     private final Path claimsCsvPath;
     private final Path itemsRejectedPath;
     private final Path claimsRejectedPath;
+    private final Path activityLogPath;
 
     public FileStorage(String dataDir) {
         String dir = (dataDir != null && !dataDir.trim().isEmpty()) ? dataDir.trim() : "data";
@@ -55,6 +57,7 @@ public class FileStorage {
         this.claimsCsvPath = dataDirPath.resolve("claims.csv");
         this.itemsRejectedPath = dataDirPath.resolve("items.rejected");
         this.claimsRejectedPath = dataDirPath.resolve("claims.rejected");
+        this.activityLogPath = dataDirPath.resolve("activity.log");
     }
 
     public Path getDataDirPath() {
@@ -75,6 +78,10 @@ public class FileStorage {
 
     public Path getClaimsRejectedPath() {
         return claimsRejectedPath;
+    }
+
+    public Path getActivityLogPath() {
+        return activityLogPath;
     }
 
     /**
@@ -283,6 +290,44 @@ public class FileStorage {
             }
             writer.write(serializeClaim(claim));
             writer.newLine();
+        }
+    }
+
+    /**
+     * Appends an event to data/activity.log with an ISO timestamp.
+     * Ensures private/confidential verification details are never written.
+     */
+    public synchronized void logActivity(String action, String details) {
+        if (action == null) return;
+        try {
+            ensureDataDir();
+            String timestamp = java.time.LocalDateTime.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String entry = String.format("[%s] [%s] %s", timestamp, action.trim(), (details != null ? details.trim() : ""));
+            try (BufferedWriter writer = Files.newBufferedWriter(activityLogPath, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+                writer.write(entry);
+                writer.newLine();
+            }
+        } catch (IOException ignored) {
+        }
+    }
+
+    /**
+     * Reads recent activity entries, returning at most maxEntries from the end of the log.
+     */
+    public synchronized List<String> readRecentActivities(int maxEntries) {
+        if (!Files.exists(activityLogPath)) {
+            return Collections.emptyList();
+        }
+        try {
+            List<String> allLines = Files.readAllLines(activityLogPath, StandardCharsets.UTF_8);
+            if (maxEntries <= 0 || allLines.size() <= maxEntries) {
+                return Collections.unmodifiableList(allLines);
+            }
+            return Collections.unmodifiableList(allLines.subList(allLines.size() - maxEntries, allLines.size()));
+        } catch (IOException e) {
+            return Collections.emptyList();
         }
     }
 

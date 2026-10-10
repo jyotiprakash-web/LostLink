@@ -38,6 +38,7 @@ public class TestRunner {
         FileStorageLoadTests.run();
         FileStorageSaveTests.run();
         RestartPersistenceTests.run();
+        ActivityLogTests.run();
 
         System.out.println("====================================================");
         System.out.printf("Test Summary: Total=%d, Passed=%d, Failed=%d%n", testsRun, testsPassed, testsFailed);

@@ -129,6 +129,12 @@ public class Main {
         }
     }
 
+    private void logActivitySafe(String action, String details) {
+        if (fileStorage != null) {
+            fileStorage.logActivity(action, details);
+        }
+    }
+
     public void displayMenu() {
         out.println("====================================================");
         out.println("                    LOSTLINK");
@@ -207,6 +213,7 @@ public class Main {
             out.println("Generated Item ID: " + item.getId());
             out.println("Item Summary: " + item.getPublicSummary());
             persistItemAppendSafe(item);
+            logActivitySafe("REPORT_LOST", "Item: " + item.getId() + " | Name: " + item.getName() + " | Category: " + item.getCategory() + " | Reporter: " + item.getReporter().getName() + " (" + item.getReporter().displayRole() + ")");
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -319,6 +326,7 @@ public class Main {
             out.println("Generated Item ID: " + item.getId());
             out.println("Item Public Summary: " + item.getPublicSummary());
             persistItemAppendSafe(item);
+            logActivitySafe("REPORT_FOUND", "Item: " + item.getId() + " | Name: " + item.getName() + " | Category: " + item.getCategory() + " | Reporter: " + item.getReporter().getName() + " (" + item.getReporter().displayRole() + ")");
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -484,6 +492,7 @@ public class Main {
             out.println("Generated Claim ID: " + claim.getId());
             out.println("Claim Summary: " + claim.getSummary());
             persistAllSafe("claim submission");
+            logActivitySafe("CLAIM_SUBMITTED", "Claim: " + claim.getId() + " | Found Item: " + claim.getFoundItemId() + " | Claimant: " + claim.getClaimantName());
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -519,6 +528,7 @@ public class Main {
             claimService.requestMoreInformation(claimId, staff.getName(), notes);
             out.println("[Success] Claim " + claimId + " updated with notes. Status remains PENDING.");
             persistAllSafe("claim notes update");
+            logActivitySafe("CLAIM_INFO_REQUESTED", "Claim: " + claimId + " | Reviewer: " + staff.getName() + " | Notes: " + notes);
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -540,6 +550,7 @@ public class Main {
             claimService.approveClaim(claimId, staff.getName(), notes);
             out.println("[Success] Claim " + claimId + " APPROVED! Item is awaiting handover completion.");
             persistAllSafe("claim approval");
+            logActivitySafe("CLAIM_APPROVED", "Claim: " + claimId + " | Reviewer: " + staff.getName() + " | Notes: " + notes);
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -561,6 +572,7 @@ public class Main {
             claimService.rejectClaim(claimId, staff.getName(), notes);
             out.println("[Success] Claim " + claimId + " REJECTED.");
             persistAllSafe("claim rejection");
+            logActivitySafe("CLAIM_REJECTED", "Claim: " + claimId + " | Reviewer: " + staff.getName() + " | Notes: " + notes);
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -582,6 +594,7 @@ public class Main {
             claimService.completeHandover(claimId, staff.getName(), notes);
             out.println("[Success] Handover complete! Claim is COMPLETED and Item is marked RETURNED.");
             persistAllSafe("handover completion");
+            logActivitySafe("HANDOVER_COMPLETED", "Claim: " + claimId + " | Operator: " + staff.getName() + " | Notes: " + notes);
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
@@ -651,6 +664,7 @@ public class Main {
                     out.println("[Success] Item " + targetId + " details updated successfully!");
                     out.println("Updated summary: " + item.getPublicSummary());
                     persistAllSafe("item update");
+                    logActivitySafe("ITEM_UPDATED", "Item: " + targetId + " | Color: " + item.getColor() + " | Location: " + item.getLocation());
                 } catch (exception.ItemNotFoundException e) {
                     out.println("[Error] Item not found with ID: " + targetId);
                 } catch (exception.InvalidItemException e) {
