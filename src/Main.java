@@ -1,5 +1,6 @@
 import java.io.PrintStream;
 import service.ItemService;
+import service.MatchingService;
 import util.InputHelper;
 
 /**
@@ -21,16 +22,22 @@ public class Main {
     };
 
     private final ItemService itemService;
+    private final MatchingService matchingService;
     private final InputHelper inputHelper;
     private final PrintStream out;
     private final String dataDir;
     private boolean running = true;
 
-    public Main(ItemService itemService, InputHelper inputHelper, PrintStream out, String dataDir) {
+    public Main(ItemService itemService, MatchingService matchingService, InputHelper inputHelper, PrintStream out, String dataDir) {
         this.itemService = (itemService != null) ? itemService : new ItemService();
+        this.matchingService = (matchingService != null) ? matchingService : new MatchingService();
         this.inputHelper = (inputHelper != null) ? inputHelper : new InputHelper();
         this.out = (out != null) ? out : System.out;
         this.dataDir = (dataDir != null) ? dataDir : DEFAULT_DATA_DIR;
+    }
+
+    public Main(ItemService itemService, InputHelper inputHelper, PrintStream out, String dataDir) {
+        this(itemService, new MatchingService(), inputHelper, out, dataDir);
     }
 
     public static void main(String[] args) {
@@ -90,7 +97,7 @@ public class Main {
                 handleReportFoundItem();
                 break;
             case 3:
-                out.println("[Coming Soon] " + MENU_LABELS[choice - 1] + " is not yet implemented.");
+                handleFindPotentialMatches();
                 break;
             case 4:
                 handleSearchRecords();
@@ -148,6 +155,69 @@ public class Main {
             handleExit();
         } catch (exception.InvalidItemException e) {
             out.println("[Error] Failed to create lost item report: " + e.getMessage());
+        }
+    }
+
+    public void handleFindPotentialMatches() {
+        out.println("\n--- Find Potential Matches ---");
+        try {
+            java.util.List<model.LostItem> openLostItems = new java.util.ArrayList<>();
+            for (model.Item item : itemService.getLostItems()) {
+                if (item.getStatus() == model.ItemStatus.OPEN) {
+                    openLostItems.add((model.LostItem) item);
+                }
+            }
+
+            if (openLostItems.isEmpty()) {
+                out.println("[Notice] No open lost items available to match against.");
+                return;
+            }
+
+            out.println("Select a lost item to find matches for:");
+            for (int i = 0; i < openLostItems.size(); i++) {
+                out.printf("  %d. %s - %s (%s, %s)%n", (i + 1), openLostItems.get(i).getId(),
+                        openLostItems.get(i).getName(), openLostItems.get(i).getCategory(), openLostItems.get(i).getLocation());
+            }
+
+            int sel = inputHelper.readMenuChoice(1, openLostItems.size());
+            if (sel == -1) {
+                out.println("\n[EOF] End of input detected. Exiting.");
+                handleExit();
+                return;
+            }
+
+            model.LostItem selectedLost = openLostItems.get(sel - 1);
+            model.MatchResult[] topMatches = matchingService.findTopMatches(selectedLost, itemService.getFoundItems());
+
+            out.println("\n[Match Analysis for " + selectedLost.getId() + " - " + selectedLost.getName() + "]");
+            if (topMatches.length == 0) {
+                out.println("[Notice] No eligible found items met the minimum match score ("
+                        + service.MatchingService.MIN_MATCH_SCORE + "/100).");
+                return;
+            }
+
+            out.println("Displaying Top " + topMatches.length + " Match Candidate(s):");
+            // Traversed with a loop over bounded MatchResult[] array
+            for (int i = 0; i < topMatches.length; i++) {
+                model.MatchResult match = topMatches[i];
+                out.println("----------------------------------------------------");
+                out.printf("Rank #%d Candidate Found Item: %s%n", (i + 1), match.getFoundItem().getId());
+                out.printf("Similarity Score: %d/100 (Heuristic similarity only, NEVER proof of ownership)%n", match.getScore());
+                out.println("Item Summary: " + match.getFoundItem().getPublicSummary());
+                out.println("Reasons breakdown:");
+                for (String reason : match.getReasons()) {
+                    out.println("  - " + reason);
+                }
+            }
+            out.println("----------------------------------------------------");
+
+            String startClaim = inputHelper.readOptional("Would you like to initiate a claim for one of these found items? (y/n)");
+            if ("y".equalsIgnoreCase(startClaim)) {
+                out.println("[Notice] Ownership claims are verified manually by staff. Please note the Candidate Found Item ID and use Menu Option 6 ('Manage claims and returns') to submit a claim.");
+            }
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
         }
     }
 

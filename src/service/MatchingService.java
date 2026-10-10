@@ -115,6 +115,44 @@ public class MatchingService {
         return new MatchResult(lost, found, totalScore, reasons);
     }
 
+    public static final java.util.Comparator<MatchResult> MATCH_COMPARATOR = (a, b) -> {
+        int scoreCmp = Integer.compare(b.getScore(), a.getScore());
+        if (scoreCmp != 0) return scoreCmp;
+        int dateCmp = b.getFoundItem().getDate().compareTo(a.getFoundItem().getDate());
+        if (dateCmp != 0) return dateCmp;
+        return a.getFoundItem().getId().compareTo(b.getFoundItem().getId());
+    };
+
+    /**
+     * Finds, ranks, and returns a bounded MatchResult[] array (max 3) of top matches.
+     * Enforces eligibility (OPEN for lost, OPEN or CLAIM_PENDING for found) and MIN_MATCH_SCORE.
+     * Traversed with a loop.
+     */
+    public MatchResult[] findTopMatches(LostItem lost, List<FoundItem> candidateFoundItems) {
+        if (lost == null || !isLostItemEligible(lost) || candidateFoundItems == null || candidateFoundItems.isEmpty()) {
+            return new MatchResult[0];
+        }
+
+        List<MatchResult> eligibleResults = new ArrayList<>();
+        for (FoundItem found : candidateFoundItems) {
+            if (isFoundItemEligible(found)) {
+                MatchResult result = compare(lost, found);
+                if (result.getScore() >= MIN_MATCH_SCORE) {
+                    eligibleResults.add(result);
+                }
+            }
+        }
+
+        eligibleResults.sort(MATCH_COMPARATOR);
+
+        int count = Math.min(3, eligibleResults.size());
+        MatchResult[] topMatches = new MatchResult[count];
+        for (int i = 0; i < count; i++) {
+            topMatches[i] = eligibleResults.get(i);
+        }
+        return topMatches;
+    }
+
     /**
      * Checks if a found item is eligible for matching (OPEN or CLAIM_PENDING).
      */
