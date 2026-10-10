@@ -1,4 +1,5 @@
 import java.io.PrintStream;
+import service.ClaimService;
 import service.ItemService;
 import service.MatchingService;
 import util.InputHelper;
@@ -23,21 +24,27 @@ public class Main {
 
     private final ItemService itemService;
     private final MatchingService matchingService;
+    private final ClaimService claimService;
     private final InputHelper inputHelper;
     private final PrintStream out;
     private final String dataDir;
     private boolean running = true;
 
-    public Main(ItemService itemService, MatchingService matchingService, InputHelper inputHelper, PrintStream out, String dataDir) {
+    public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, InputHelper inputHelper, PrintStream out, String dataDir) {
         this.itemService = (itemService != null) ? itemService : new ItemService();
         this.matchingService = (matchingService != null) ? matchingService : new MatchingService();
+        this.claimService = (claimService != null) ? claimService : new ClaimService(this.itemService);
         this.inputHelper = (inputHelper != null) ? inputHelper : new InputHelper();
         this.out = (out != null) ? out : System.out;
         this.dataDir = (dataDir != null) ? dataDir : DEFAULT_DATA_DIR;
     }
 
+    public Main(ItemService itemService, MatchingService matchingService, InputHelper inputHelper, PrintStream out, String dataDir) {
+        this(itemService, matchingService, new ClaimService(itemService), inputHelper, out, dataDir);
+    }
+
     public Main(ItemService itemService, InputHelper inputHelper, PrintStream out, String dataDir) {
-        this(itemService, new MatchingService(), inputHelper, out, dataDir);
+        this(itemService, new MatchingService(), new ClaimService(itemService), inputHelper, out, dataDir);
     }
 
     public static void main(String[] args) {
@@ -106,6 +113,8 @@ public class Main {
                 handleBrowseItems();
                 break;
             case 6:
+                handleManageClaims();
+                break;
             case 7:
             case 8:
                 out.println("[Coming Soon] " + MENU_LABELS[choice - 1] + " is not yet implemented.");
@@ -213,7 +222,15 @@ public class Main {
 
             String startClaim = inputHelper.readOptional("Would you like to initiate a claim for one of these found items? (y/n)");
             if ("y".equalsIgnoreCase(startClaim)) {
-                out.println("[Notice] Ownership claims are verified manually by staff. Please note the Candidate Found Item ID and use Menu Option 6 ('Manage claims and returns') to submit a claim.");
+                if (topMatches.length == 1) {
+                    handleSubmitClaim(topMatches[0].getFoundItem().getId(), selectedLost.getId());
+                } else {
+                    out.println("Select candidate to claim (1-" + topMatches.length + "):");
+                    int candNum = inputHelper.readMenuChoice(1, topMatches.length);
+                    if (candNum != -1) {
+                        handleSubmitClaim(topMatches[candNum - 1].getFoundItem().getId(), selectedLost.getId());
+                    }
+                }
             }
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
@@ -347,6 +364,175 @@ public class Main {
         } catch (java.util.NoSuchElementException e) {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
+        }
+    }
+
+    public void handleManageClaims() {
+        boolean inClaimsMenu = true;
+        while (inClaimsMenu && running) {
+            out.println("\n====================================================");
+            out.println("            Manage Claims and Returns");
+            out.println("====================================================");
+            out.println("1. Submit a new ownership claim");
+            out.println("2. View all claims");
+            out.println("3. Request more information on a pending claim");
+            out.println("4. Approve a pending claim");
+            out.println("5. Reject a pending claim");
+            out.println("6. Complete item handover (mark as returned)");
+            out.println("7. Return to main menu");
+            out.println("====================================================");
+
+            int choice = inputHelper.readMenuChoice(1, 7);
+            if (choice == -1) {
+                out.println("\n[EOF] End of input detected. Exiting.");
+                handleExit();
+                return;
+            }
+
+            switch (choice) {
+                case 1:
+                    handleSubmitClaim(null, null);
+                    break;
+                case 2:
+                    handleViewAllClaims();
+                    break;
+                case 3:
+                    handleRequestMoreInfo();
+                    break;
+                case 4:
+                    handleApproveClaim();
+                    break;
+                case 5:
+                    handleRejectClaim();
+                    break;
+                case 6:
+                    handleCompleteHandover();
+                    break;
+                case 7:
+                    inClaimsMenu = false;
+                    break;
+            }
+        }
+    }
+
+    public void handleSubmitClaim(String preFilledFoundId, String preFilledLostId) {
+        out.println("\n--- Submit an Ownership Claim ---");
+        try {
+            String foundId = (preFilledFoundId != null && !preFilledFoundId.isEmpty())
+                    ? preFilledFoundId
+                    : inputHelper.readNonBlank("Found item ID to claim (e.g. ITM-0001)");
+
+            String lostId = (preFilledLostId != null && !preFilledLostId.isEmpty())
+                    ? preFilledLostId
+                    : inputHelper.readOptional("Linked lost item ID (if any)");
+
+            String claimantName = inputHelper.readNonBlank("Claimant full name");
+            String contact = inputHelper.readNonBlank("Claimant contact phone/email");
+            String details = inputHelper.readNonBlank("Identifying information / proof of ownership");
+
+            model.Claim claim = claimService.submitClaim(foundId, lostId, claimantName, contact, details, java.time.LocalDate.now());
+            out.println("\n[Success] Claim submitted successfully!");
+            out.println("Generated Claim ID: " + claim.getId());
+            out.println("Claim Summary: " + claim.getSummary());
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
+        } catch (exception.ItemNotFoundException e) {
+            out.println("[Error] Item not found: " + e.getMessage());
+        } catch (exception.InvalidClaimException e) {
+            out.println("[Error] Invalid claim: " + e.getMessage());
+        }
+    }
+
+    public void handleViewAllClaims() {
+        out.println("\n--- All Registered Claims ---");
+        java.util.List<model.Claim> claims = claimService.getAllClaims();
+        if (claims.isEmpty()) {
+            out.println("[Notice] No claims have been submitted yet.");
+            return;
+        }
+        for (int i = 0; i < claims.size(); i++) {
+            out.println((i + 1) + ". " + claims.get(i).getSummary());
+        }
+    }
+
+    public void handleRequestMoreInfo() {
+        out.println("\n--- Request More Information ---");
+        try {
+            String claimId = inputHelper.readNonBlank("Claim ID");
+            String staffName = inputHelper.readNonBlank("Reviewing staff name");
+            String staffId = inputHelper.readOptional("Staff ID");
+            model.Staff staff = new model.Staff(staffName, "", staffId);
+            out.println("Operating as: " + staff.getName() + " [" + staff.displayRole() + "]");
+
+            String notes = inputHelper.readNonBlank("Questions / information needed");
+            claimService.requestMoreInformation(claimId, staff.getName(), notes);
+            out.println("[Success] Claim " + claimId + " updated with notes. Status remains PENDING.");
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
+        } catch (exception.InvalidClaimException e) {
+            out.println("[Error] " + e.getMessage());
+        }
+    }
+
+    public void handleApproveClaim() {
+        out.println("\n--- Approve Ownership Claim ---");
+        try {
+            String claimId = inputHelper.readNonBlank("Claim ID to approve");
+            String staffName = inputHelper.readNonBlank("Reviewing staff name");
+            String staffId = inputHelper.readOptional("Staff ID");
+            model.Staff staff = new model.Staff(staffName, "", staffId);
+            out.println("Operating as: " + staff.getName() + " [" + staff.displayRole() + "]");
+
+            String notes = inputHelper.readNonBlank("Approval justification notes");
+            claimService.approveClaim(claimId, staff.getName(), notes);
+            out.println("[Success] Claim " + claimId + " APPROVED! Item is awaiting handover completion.");
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
+        } catch (exception.InvalidClaimException | exception.ItemNotFoundException e) {
+            out.println("[Error] " + e.getMessage());
+        }
+    }
+
+    public void handleRejectClaim() {
+        out.println("\n--- Reject Ownership Claim ---");
+        try {
+            String claimId = inputHelper.readNonBlank("Claim ID to reject");
+            String staffName = inputHelper.readNonBlank("Reviewing staff name");
+            String staffId = inputHelper.readOptional("Staff ID");
+            model.Staff staff = new model.Staff(staffName, "", staffId);
+            out.println("Operating as: " + staff.getName() + " [" + staff.displayRole() + "]");
+
+            String notes = inputHelper.readNonBlank("Rejection reason notes");
+            claimService.rejectClaim(claimId, staff.getName(), notes);
+            out.println("[Success] Claim " + claimId + " REJECTED.");
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
+        } catch (exception.InvalidClaimException | exception.ItemNotFoundException e) {
+            out.println("[Error] " + e.getMessage());
+        }
+    }
+
+    public void handleCompleteHandover() {
+        out.println("\n--- Complete Item Handover ---");
+        try {
+            String claimId = inputHelper.readNonBlank("APPROVED Claim ID to complete");
+            String staffName = inputHelper.readNonBlank("Staff operator name");
+            String staffId = inputHelper.readOptional("Staff ID");
+            model.Staff staff = new model.Staff(staffName, "", staffId);
+            out.println("Operating as: " + staff.getName() + " [" + staff.displayRole() + "]");
+
+            String notes = inputHelper.readNonBlank("Handover confirmation notes");
+            claimService.completeHandover(claimId, staff.getName(), notes);
+            out.println("[Success] Handover complete! Claim is COMPLETED and Item is marked RETURNED.");
+        } catch (java.util.NoSuchElementException e) {
+            out.println("\n[EOF] End of input detected. Exiting.");
+            handleExit();
+        } catch (exception.InvalidClaimException | exception.ItemNotFoundException e) {
+            out.println("[Error] " + e.getMessage());
         }
     }
 
