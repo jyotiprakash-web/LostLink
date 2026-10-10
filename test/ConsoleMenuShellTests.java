@@ -35,7 +35,7 @@ public class ConsoleMenuShellTests {
             TestRunner.check("App stopped running after option 9", !app.isRunning());
             TestRunner.check("Output contains Invalid number format message", output.contains("Invalid number format"));
             TestRunner.check("Output contains Choice out of range message", output.contains("Choice out of range"));
-            TestRunner.check("Output contains Coming Soon message for option 8", output.contains("[Coming Soon] Statistics dashboard is not yet implemented."));
+            TestRunner.check("Output contains Statistics dashboard header for option 8", output.contains("STATISTICS DASHBOARD"));
             TestRunner.check("Output contains Goodbye message", output.contains("Saving data and exiting LostLink. Goodbye!"));
         }
 

@@ -119,7 +119,7 @@ public class Main {
                 handleMyReports();
                 break;
             case 8:
-                out.println("[Coming Soon] " + MENU_LABELS[choice - 1] + " is not yet implemented.");
+                handleStatisticsDashboard();
                 break;
             case 9:
                 handleExit();
@@ -608,6 +608,22 @@ public class Main {
             out.println("\n[EOF] End of input detected. Exiting.");
             handleExit();
         }
+    }
+
+    public void handleStatisticsDashboard() {
+        out.println("\n====================================================");
+        out.println("               STATISTICS DASHBOARD");
+        out.println("====================================================");
+        model.SystemStatistics stats = itemService.getStatistics(claimService);
+        out.printf("Total Lost Reports:    %d%n", stats.getTotalLost());
+        out.printf("Total Found Reports:   %d%n", stats.getTotalFound());
+        out.printf("Total Reports:         %d%n", stats.getTotalItems());
+        out.printf("Unresolved Items:      %d (OPEN or CLAIM_PENDING)%n", stats.getUnresolvedItems());
+        out.printf("Pending Claims:        %d%n", stats.getPendingClaims());
+        out.printf("Returned Items:        %d (Lost: %d, Found: %d)%n",
+                stats.getReturnedItems(), stats.getReturnedLost(), stats.getReturnedFound());
+        out.printf("Recovery Rate:         %s%n", stats.getFormattedRecoveryRate());
+        out.println("====================================================");
     }
 
     public void handleExit() {

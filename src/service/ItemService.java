@@ -13,6 +13,7 @@ import model.Item;
 import model.ItemCategory;
 import model.ItemStatus;
 import model.LostItem;
+import model.SystemStatistics;
 import model.User;
 
 /**
@@ -298,6 +299,108 @@ public class ItemService {
         } else if (item instanceof FoundItem && newExtraDetails != null && !newExtraDetails.trim().isEmpty()) {
             ((FoundItem) item).setPrivateDetails(newExtraDetails);
         }
+    }
+
+    /**
+     * Calculates an immutable SystemStatistics snapshot from current item states
+     * and optional ClaimService state.
+     */
+    public synchronized SystemStatistics getStatistics(ClaimService claimService) {
+        int totalLost = 0;
+        int totalFound = 0;
+        int unresolved = 0;
+        int returned = 0;
+        int returnedFound = 0;
+        int returnedLost = 0;
+
+        for (Item item : itemList) {
+            if (item instanceof LostItem) {
+                totalLost++;
+                if (item.getStatus() == ItemStatus.RETURNED) {
+                    returnedLost++;
+                }
+            } else if (item instanceof FoundItem) {
+                totalFound++;
+                if (item.getStatus() == ItemStatus.RETURNED) {
+                    returnedFound++;
+                }
+            }
+
+            if (item.getStatus() == ItemStatus.OPEN || item.getStatus() == ItemStatus.CLAIM_PENDING) {
+                unresolved++;
+            }
+            if (item.getStatus() == ItemStatus.RETURNED) {
+                returned++;
+            }
+        }
+
+        int pendingClaims = 0;
+        int totalClaims = 0;
+        if (claimService != null) {
+            pendingClaims = claimService.getPendingClaimCount();
+            totalClaims = claimService.getClaimCount();
+        }
+
+        double recoveryRate = (totalFound == 0) ? 0.0 : ((double) returnedFound / totalFound) * 100.0;
+
+        return new SystemStatistics(totalLost, totalFound, itemList.size(), unresolved,
+                pendingClaims, totalClaims, returned, returnedFound, returnedLost, recoveryRate);
+    }
+
+    public synchronized int getTotalLostCount() {
+        int count = 0;
+        for (Item item : itemList) {
+            if (item instanceof LostItem) count++;
+        }
+        return count;
+    }
+
+    public synchronized int getTotalFoundCount() {
+        int count = 0;
+        for (Item item : itemList) {
+            if (item instanceof FoundItem) count++;
+        }
+        return count;
+    }
+
+    public synchronized int getUnresolvedCount() {
+        int count = 0;
+        for (Item item : itemList) {
+            if (item.getStatus() == ItemStatus.OPEN || item.getStatus() == ItemStatus.CLAIM_PENDING) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public synchronized int getReturnedCount() {
+        int count = 0;
+        for (Item item : itemList) {
+            if (item.getStatus() == ItemStatus.RETURNED) count++;
+        }
+        return count;
+    }
+
+    public synchronized int getReturnedFoundCount() {
+        int count = 0;
+        for (Item item : itemList) {
+            if (item instanceof FoundItem && item.getStatus() == ItemStatus.RETURNED) count++;
+        }
+        return count;
+    }
+
+    public synchronized int getReturnedLostCount() {
+        int count = 0;
+        for (Item item : itemList) {
+            if (item instanceof LostItem && item.getStatus() == ItemStatus.RETURNED) count++;
+        }
+        return count;
+    }
+
+    public synchronized double getRecoveryRate() {
+        int found = getTotalFoundCount();
+        if (found == 0) return 0.0;
+        return ((double) getReturnedFoundCount() / found) * 100.0;
     }
 
     /**

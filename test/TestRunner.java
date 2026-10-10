@@ -32,6 +32,7 @@ public class TestRunner {
         HandoverCompletionTests.run();
         ClaimsConsoleWorkflowTests.run();
         MyReportsTests.run();
+        StatisticsTests.run();
 
         System.out.println("====================================================");
         System.out.printf("Test Summary: Total=%d, Passed=%d, Failed=%d%n", testsRun, testsPassed, testsFailed);

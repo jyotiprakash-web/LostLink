@@ -279,6 +279,46 @@ public class ClaimService {
         return claimList.size();
     }
 
+    public synchronized int getPendingClaimCount() {
+        int count = 0;
+        for (Claim c : claimList) {
+            if (c.getStatus() == ClaimStatus.PENDING) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public synchronized int getApprovedClaimCount() {
+        int count = 0;
+        for (Claim c : claimList) {
+            if (c.getStatus() == ClaimStatus.APPROVED) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public synchronized int getCompletedClaimCount() {
+        int count = 0;
+        for (Claim c : claimList) {
+            if (c.getStatus() == ClaimStatus.COMPLETED) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public synchronized int getRejectedClaimCount() {
+        int count = 0;
+        for (Claim c : claimList) {
+            if (c.getStatus() == ClaimStatus.REJECTED) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public synchronized void clear() {
         claimList.clear();
         claimMap.clear();
