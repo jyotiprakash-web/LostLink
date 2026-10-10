@@ -1,4 +1,8 @@
 import java.io.PrintStream;
+import java.time.LocalDate;
+import model.ItemCategory;
+import model.Staff;
+import model.Student;
 import service.ClaimService;
 import service.FileStorage;
 import service.ItemService;
@@ -30,9 +34,10 @@ public class Main {
     private final InputHelper inputHelper;
     private final PrintStream out;
     private final String dataDir;
+    private final boolean demoMode;
     private boolean running = true;
 
-    public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, FileStorage fileStorage, InputHelper inputHelper, PrintStream out, String dataDir) {
+    public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, FileStorage fileStorage, InputHelper inputHelper, PrintStream out, String dataDir, boolean demoMode) {
         this.itemService = (itemService != null) ? itemService : new ItemService();
         this.matchingService = (matchingService != null) ? matchingService : new MatchingService();
         this.claimService = (claimService != null) ? claimService : new ClaimService(this.itemService);
@@ -40,12 +45,21 @@ public class Main {
         this.out = (out != null) ? out : System.out;
         this.dataDir = (dataDir != null) ? dataDir : DEFAULT_DATA_DIR;
         this.fileStorage = fileStorage;
+        this.demoMode = demoMode;
+    }
+
+    public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, FileStorage fileStorage, InputHelper inputHelper, PrintStream out, String dataDir) {
+        this(itemService, matchingService, claimService, fileStorage, inputHelper, out, dataDir, false);
+    }
+
+    public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, InputHelper inputHelper, PrintStream out, String dataDir, boolean demoMode) {
+        this(itemService, matchingService, claimService,
+                Boolean.getBoolean("lostlink.no_storage") ? null : new FileStorage((dataDir != null) ? dataDir : DEFAULT_DATA_DIR),
+                inputHelper, out, dataDir, demoMode);
     }
 
     public Main(ItemService itemService, MatchingService matchingService, ClaimService claimService, InputHelper inputHelper, PrintStream out, String dataDir) {
-        this(itemService, matchingService, claimService,
-                Boolean.getBoolean("lostlink.no_storage") ? null : new FileStorage((dataDir != null) ? dataDir : DEFAULT_DATA_DIR),
-                inputHelper, out, dataDir);
+        this(itemService, matchingService, claimService, inputHelper, out, dataDir, false);
     }
 
     public Main(ItemService itemService, MatchingService matchingService, InputHelper inputHelper, PrintStream out, String dataDir) {
@@ -58,12 +72,31 @@ public class Main {
 
     public static void main(String[] args) {
         String dataDir = resolveDataDir(args);
+        boolean demoMode = isDemo(args);
         InputHelper inputHelper = new InputHelper();
         ItemService itemService = new ItemService();
         ClaimService claimService = new ClaimService(itemService);
-        FileStorage fileStorage = new FileStorage(dataDir);
-        Main app = new Main(itemService, new MatchingService(), claimService, fileStorage, inputHelper, System.out, dataDir);
+        FileStorage fileStorage = Boolean.getBoolean("lostlink.no_storage") ? null : new FileStorage(dataDir);
+        Main app = new Main(itemService, new MatchingService(), claimService, fileStorage, inputHelper, System.out, dataDir, demoMode);
         app.run();
+    }
+
+    public static boolean isDemo(String[] args) {
+        if (Boolean.getBoolean("lostlink.demo")) {
+            return true;
+        }
+        if (args != null) {
+            for (String arg : args) {
+                if ("--demo".equalsIgnoreCase(arg)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean isDemoMode() {
+        return demoMode;
     }
 
     public static String resolveDataDir(String[] args) {
@@ -83,6 +116,17 @@ public class Main {
 
     public void run() {
         loadData();
+        if (demoMode) {
+            if (itemService.getAllItems().isEmpty()) {
+                populateDemoData();
+                if (fileStorage != null) {
+                    persistAllSafe("demo data");
+                }
+            } else {
+                out.printf("[Demo Mode] Pre-existing records found (%d item(s)); skipping demo population to preserve existing data.%n",
+                        itemService.getAllItems().size());
+            }
+        }
         while (running) {
             displayMenu();
             int choice = inputHelper.readMenuChoice(1, MENU_LABELS.length);
@@ -93,6 +137,93 @@ public class Main {
                 break;
             }
             handleMenuChoice(choice);
+        }
+    }
+
+    public void populateDemoData() {
+        try {
+            itemService.reportLostItem(
+                    "MacBook Pro 14\"",
+                    ItemCategory.ELECTRONICS,
+                    "Space Gray",
+                    "Library 2nd Floor",
+                    LocalDate.now().minusDays(3),
+                    "M2 Pro MacBook with metallic finish and case",
+                    new Student("Alice Smith", "alice@university.edu", "S1001"),
+                    "alice@university.edu",
+                    "Desk 14 near the silent study area");
+
+            itemService.reportFoundItem(
+                    "MacBook Pro 14-inch",
+                    ItemCategory.ELECTRONICS,
+                    "Space Gray",
+                    "Library 2nd Floor Study Room",
+                    LocalDate.now().minusDays(2),
+                    "Silver-gray laptop in black sleeve",
+                    new Staff("Campus Security", "security@university.edu", "STF-01"),
+                    "security@university.edu",
+                    "Engraved initials A.S. on bottom; blue dragon sticker; serial C02G...");
+
+            itemService.reportLostItem(
+                    "Apple AirPods Pro",
+                    ItemCategory.ELECTRONICS,
+                    "White",
+                    "Student Union Cafeteria",
+                    LocalDate.now().minusDays(5),
+                    "Wireless earbuds in white charging case",
+                    new Student("Bob Jones", "bob@university.edu", "S1002"),
+                    "bob@university.edu",
+                    "Table next to coffee cart");
+
+            itemService.reportFoundItem(
+                    "AirPods Pro Case",
+                    ItemCategory.ELECTRONICS,
+                    "White",
+                    "Student Union Dining Hall",
+                    LocalDate.now().minusDays(4),
+                    "White earbud case found on booth seat",
+                    new Staff("Custodial Services", "custodial@university.edu", "STF-02"),
+                    "custodial@university.edu",
+                    "Small scratch near lightning port; engraved initials 'BJ'");
+
+            itemService.reportLostItem(
+                    "Hydro Flask 32oz",
+                    ItemCategory.ACCESSORIES,
+                    "Cobalt Blue",
+                    "Recreation Center Gym",
+                    LocalDate.now().minusDays(1),
+                    "Metal water bottle with dent on base",
+                    new Student("Carol Danvers", "carol@university.edu", "S1003"),
+                    "carol@university.edu",
+                    "Bench by weight room");
+
+            itemService.reportFoundItem(
+                    "Cashmere Wool Scarf",
+                    ItemCategory.CLOTHING,
+                    "Navy Blue",
+                    "Lecture Hall A",
+                    LocalDate.now().minusDays(1),
+                    "Soft navy blue woven winter scarf",
+                    new Staff("Campus Facilities", "facilities@university.edu", "STF-03"),
+                    "facilities@university.edu",
+                    "Tag marked with dry cleaner stamp #8841");
+
+            claimService.submitClaim(
+                    "ITM-0002",
+                    "ITM-0001",
+                    "Alice Smith",
+                    "alice@university.edu",
+                    "The laptop has my initials A.S. engraved on the underside and a blue dragon sticker on the palm rest.",
+                    LocalDate.now().minusDays(1));
+
+            logActivitySafe("DEMO_DATA_POPULATED", "Sample records created (6 items, 1 claim)");
+
+            out.println("[Demo Mode] Populated sample dataset:");
+            out.println("  - 3 Lost items (MacBook Pro, AirPods Pro, Hydro Flask)");
+            out.println("  - 3 Found items (MacBook Pro, AirPods Case, Wool Scarf)");
+            out.println("  - 1 Pending claim (CLM-0001: Alice Smith claiming ITM-0002)");
+        } catch (Exception e) {
+            out.println("[Warning] Failed to populate demo data: " + e.getMessage());
         }
     }
 
