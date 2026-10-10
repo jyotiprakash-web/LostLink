@@ -1,0 +1,5 @@
+.\build.bat clean // Must run 
+.\build.bat compile //Must run
+.\build.bat run --demo //If you want demo data
+.\build.bat run //If you don't want demo data and want a clean run
+.\build.bat test  // In case you see any errors.
